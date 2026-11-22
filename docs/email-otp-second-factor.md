@@ -102,7 +102,7 @@ Verification (2026-11-22): lint and build clean; root unit tests 387 passed / 23
 Implemented in `myfitness-trainer-webapp` (branch `offset-feature-01`, not deployed):
 
 - Transport: `src/app/api/auth/otp/route.ts` is the single BFF forwarder. It accepts a closed action set (`status` | `start` | `verify` | `backup-code` | `trusted`), pins `app: 'web'`, requires a bearer token, and returns machine failure codes only (`unauthorized`, `stale`, `invalid`, `expired`, `locked`, `email-in-use`, `unavailable`, `failed`). Upstream prose never reaches the browser.
-- Client helpers: `src/lib/firebase/otp.ts` mirrors the OTP DTOs from contract 0.16.0 (the published webapp dependency is 0.15.1 and has none), plus the per-browser device id (`localStorage` `uppra-device-id`, 32 hex), the claims reader/gate predicate, the challenge cache (`sessionStorage` `uppra-otp-challenge:<purpose>`), and backup-code input normalisation. Switch to contract types once 0.16.0 is published.
+- Client helpers: `src/lib/firebase/otp.ts` mirrors the OTP DTOs from contract 0.17.0 (published 2026-11-22; the webapp dependency stays pinned at 0.15.1 until a deliberate bump), plus the per-browser device id (`localStorage` `uppra-device-id`, 32 hex), the claims reader/gate predicate, the challenge cache (`sessionStorage` `uppra-otp-challenge:<purpose>`), and backup-code input normalisation. Switch to contract types once the pin moves.
 - Auth adapter: `getOtpClaims`, `refreshIdToken` and `reauthenticate(password)`; reauthentication mints a fresh token so the enrollment callable's five-minute window sees the advanced `auth_time`.
 - Gate: `AuthProvider` decodes claims locally; a fresh session costs no network. A stale token asks `checkTrustedDevice` once, then refreshes and clears, or sends the user to `/verify-otp`. `unavailable` releases the shell (rules stay the real gate). `AuthGate` redirects before the email-verification gate; `AppShell` holds protected content and navigation while the decision is pending.
 - Screens: `/verify-otp` (`VerifyOtpPanel`) and the Settings "Security" card (`SecuritySettings`) with enable, disable, backup-code regeneration and email change; `OtpCodeForm` handles code entry, resend countdown and backup-code fallback. All copy is localized through new top-level `otp` and `security` namespaces in the 12 message catalogs.
@@ -120,7 +120,7 @@ Verification (2026-11-22): lint, `tsc --noEmit` and production build clean (buil
 Implemented in `myfitness-mobileapp` (both apps; not committed, not built to a device):
 
 - `domain`: pure OTP vocabulary (`OtpFailure`/`OtpFailureKind`, `OtpChallengeInfo`, `OtpSecurityOverview`, `OtpSecurityPort`) so the design system renders typed failures only.
-- `data`: contract-0.16.0 DTOs hand-mirrored (the melos pin has no OTP types yet; wire spellings `backup_codes`/`email_change` are pinned in one map), `FunctionsOtpService` (region `europe-west2`), the same per-action failure classification as the webapp BFF, `PrefsDeviceIdStore` (`SharedPreferences` `otp-device-id`, 32 hex, storage failure falls back to a session id), the claims freshness predicate, `OtpSignInGate` (send/verify/backup/sign-out) and `OtpSecurityActions` (the `OtpSecurityPort` adapter). `CoachSession` gained `idTokenClaims`, `refreshIdToken` and `reauthenticate`; the token refreshes after every successful verify or trust check.
+- `data`: contract-0.17.0 DTOs hand-mirrored (the melos contract pin is still 0.15.1; wire spellings `backup_codes`/`email_change` are pinned in one map), `FunctionsOtpService` (region `europe-west2`), the same per-action failure classification as the webapp BFF, `PrefsDeviceIdStore` (`SharedPreferences` `otp-device-id`, 32 hex, storage failure falls back to a session id), the claims freshness predicate, `OtpSignInGate` (send/verify/backup/sign-out) and `OtpSecurityActions` (the `OtpSecurityPort` adapter). `CoachSession` gained `idTokenClaims`, `refreshIdToken` and `reauthenticate`; the token refreshes after every successful verify or trust check.
 - Boot: `CoachBootFlow` runs an OTP stage before workspace discovery — a fresh stamped session costs no network, a trusted device refreshes and continues, an untrusted device lands on `CoachBootStage.otpRequired`. `unavailable` releases the shell (rollout order: rules remain the server-side gate).
 - Screens: `CoachOtpScreen` + shared `OtpCodeEntry` (masked email notice, 6-digit entry, backup-code fallback, wall-clock resend cooldown, typed error line, "sign in with a different account") and `SecuritySettingsPage` (enable with password re-auth, disable/replace behind destructive confirms, one-time backup-code display with copy, trusted-until line). Both apps push the Security page from Settings and re-boot after sign-out from the code screen.
 - Copy: 48 new keys across the 12 locales in `mobile_extra_keys.dart` / `mobile_extra_european.dart` / `mobile_extra_nordic.dart` / `mobile_extra_asian.dart`, append-only; the parity test covers key sets, placeholders, uniqueness and the English-differs rule.
@@ -148,7 +148,7 @@ Status: scoped, not built. The repository does not exist yet.
 
 ### Backend additions (ship before the admin app)
 
-- Contract 0.17.0 (additive; trainer webapp's 0.15.1 pin and the hand-mirrored mobile DTOs are unaffected):
+- Contract 0.18.0 (additive; 0.17.0 is already published with the OTP surface, and the clients' 0.15.1 pins plus the hand-mirrored mobile DTOs are unaffected):
   - `AdminGetOtpStatusRequest { uid?; email? }` — exactly one; email resolved with Admin SDK `getUserByEmail`.
   - `AdminGetOtpStatusResponse { uid; email; emailVerified; accountCreatedAt; lastSignInAt; otp: { enabled; enabledAt; emailAtEnrollment; backupCodesRemaining }; devices: AdminOtpDevice[]; audit: AdminOtpAuditRow[] }`.
   - `AdminOtpDevice { deviceId; app: OtpAppSurface | null; createdAt; lastSeenAt; trustedUntil }`.
@@ -175,7 +175,7 @@ Status: scoped, not built. The repository does not exist yet.
 ### Environments and rollout
 
 - `myfitness-test` first, with App Check in monitoring mode (separate reCAPTCHA Enterprise site key registered for the admin host; the trainer key is not reused). Production mirrors later through the same App Hosting + secret layout.
-- Rollout order: backend contract 0.17.0 + callable deploy → admin app deploy. Steps 1–3 (webapp, mobile, backend) are untouched; the contract change is additive.
+- Rollout order: backend contract 0.18.0 + callable deploy → admin app deploy. Steps 1–3 (webapp, mobile, backend) are untouched; the contract change is additive.
 
 ### Test plan
 
